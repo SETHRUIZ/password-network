@@ -11,6 +11,7 @@
 
 #define MAX_USERNAME_LENGTH 24
 #define PASSWORD_LENGTH 7
+//dont just divide up by alphabet, divide up by start and end word
 #define NUM_THREADS 26
 
 //TODO
