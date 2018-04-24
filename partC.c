@@ -10,22 +10,18 @@
 
 
 #define MAX_USERNAME_LENGTH 24
-#define PASSWORD_LENGTH 6
+#define PASSWORD_LENGTH 7
 #define NUM_THREADS 26
 
-//password entry
-typedef struct password_entry {
-	char username[MAX_USERNAME_LENGTH+1];
-	uint8_t password_md5[MD5_DIGEST_LENGTH+1];
-	bool cracked;
-	char crackedword[7];
-	struct password_entry* next;
-} password_entry_t;
+//TODO
+// figure out num threads
+// pass in three values from client
 
 //Thread arguments
 typedef struct thread_args {
-	char start_word;
-	password_entry_t* passwords;
+  char* start_word[7];
+  char* end_word[7];
+  uint8_t* hash[MD5_DIGEST_LENGTH+1];
 } thread_args_t;
 
 //function signatures
@@ -106,76 +102,37 @@ char* create_word(char c) {
 void* crack_passwords_thread(void* void_args) {
 
 	thread_args_t* args = (thread_args_t*) void_args;
-	password_entry_t* passwords = args->passwords;
+	uint8_t* hash = args->hash;
 	char* start_word = create_word(args->start_word);
+        char* end_word = create_word(args->end_word);
 
 	//check for  passwords starting from start_word
-	check_range(start_word, PASSWORD_LENGTH, passwords);
+	check_range(start_word, end_word, PASSWORD_LENGTH, hash);
 	free(start_word);
 
 	return (void*) args;  
 }
 
+//TODO
+
+
 //check_range
 // @param start_word: a string
 // @param k: an integer that indicates index of character that needs to be changed
-// @param passwords: a poitner to the head of the passwords list
-void check_range(char* start_word, int k, password_entry_t* passwords) {
-	if(k == 1) {
-		check_all_converter(passwords, start_word);
-		return;
-	}   
-	for(char c = 'a'; c <= 'z'; c++) {
-		start_word[k - 1] = c;
-		check_range(start_word, k - 1, passwords);
-	}
-	return;
+// @param hash: a hashed password
+char* void check_range(char* start_word, int k, uint8_t* hash) {
+  if(k == 1) {
+    if(check_all_converter(hash, start_word)){
+      return start_word;
+    }
+  }
+  for(char c = 'a'; c <= 'z'; c++) {
+    start_word[k - 1] = c;
+    check_range(start_word, k - 1, hash);
+  }
+  return NULL;
 }
 
-/**
- * Read a file of username and MD5 passwords. Return a linked list
- * of entries.
- * \param filename  The path to the password file
- * \returns         A pointer to the first node in the password list
- */
-password_entry_t* read_password_file(const char* filename) {
-	// Open the password file
-	FILE* password_file = fopen(filename, "r");
-	if(password_file == NULL) {
-		perror("opening password file");
-		exit(2);
-	}
-
-	// Keep track of the current list
-	password_entry_t* list = NULL;
-
-	// Read until we hit the end of the file
-	while(!feof(password_file)) {
-		// Make space for a new node
-		password_entry_t* newnode = (password_entry_t*)malloc(sizeof(password_entry_t));
-
-		// Make space to hold the MD5 string
-		char md5_string[MD5_DIGEST_LENGTH * 2 + 1];
-
-		// Try to read. The space in the format string is required to eat the newline
-		if(fscanf(password_file, "%s %s ", newnode->username, md5_string) != 2) {
-			fprintf(stderr, "Error reading password file: malformed line\n");
-			exit(2);
-		}
-
-		// Convert the MD5 string to MD5 bytes in our new node
-		if(md5_string_to_bytes(md5_string, newnode->password_md5) != 0) {
-			fprintf(stderr, "Error reading MD5\n");
-			exit(2);
-		}
-
-		// Add the new node to the front of the list
-		newnode->next = list;
-		list = newnode;
-	}
-
-	return list;
-}
 
 /**
  * Convert a string representation of an MD5 hash to a sequence
@@ -224,23 +181,17 @@ void print_md5_bytes(const uint8_t* bytes) {
 //  @return: returns true if the hashes match, else returns false
 //
 // given word, compares the md5 hash for that word with hashcheck
-void check_all_converter(password_entry_t* passwords, char* word){
+bool check_all_converter(uint8_t* hash, char* word){
 
-	uint8_t password_ciphertest[MD5_DIGEST_LENGTH];
-	MD5((unsigned char*)word, strlen(word), password_ciphertest);
-	password_entry_t* current = passwords;
+  uint8_t password_ciphertest[MD5_DIGEST_LENGTH];
+  MD5((unsigned char*)word, strlen(word), password_ciphertest);
 
-	//compare word's MD5 hash with all those in passwords
-	while(current != NULL){   
-		if(memcmp(current->password_md5, password_ciphertest, MD5_DIGEST_LENGTH) == 0) {
-			current->cracked = true; //found a matching password
-			strcpy(current->crackedword, word);
-			return;
-		}
-
-		current = current->next;  
-	}
-	return;
+  //compare word's MD5 hash with the given hash  
+  if(memcmp(hash, password_ciphertest, MD5_DIGEST_LENGTH) == 0) {	
+    return true;
+  } else {
+    return false;
+  }
 }
 
 
