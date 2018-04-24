@@ -1,11 +1,3 @@
-/**
- * This file implements a simple parallel server application. Each new client
- * is associated with a thread running on the server. This thread runs a basic
- * echo server. The server can accept many client connections at once, although
- * the clients do not interact in any way. It's only a couple steps away from
- * a chat server, which would require client threads to send messages to the
- * sockets associated with *different* clients.
- */
 
 #include <pthread.h>
 #include <stdbool.h>
@@ -17,6 +9,64 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+
+//CLIENT STRUCTS
+typedef struct client {
+ struct client* next;
+ int client_id;
+ int port;
+ char ipstr[INET_ADDRSTRLEN]; 
+} client_node_t;
+
+typedef struct client_list {
+  client_node_t* head;
+} client_list_t;
+
+client_list_t* client_list;
+
+
+///////  CLIENT LINKED LIST METHODS   ////////////
+
+//Appends client node to linked list
+void append_node(int client_id, int port, char* ipstr) {
+
+  //allocate memory for the new client node
+  client_node_t* new_node = malloc(sizeof(client_node_t));
+  if(new_node == NULL) {
+    perror("Malloc failed");
+    exit(2);
+  }
+
+  //populate the client node fields
+  new_node->client_id = client_id;
+  new_node->port = port;
+  strcpy(new_node->ipstr, ipstr);
+  new_node->next = NULL;
+
+  //if list is empty, add client to empty list
+  if(client_list->head == NULL) {
+    client_list->head = new_node;
+    return;
+  }
+
+  //otherwise add to end of list
+  client_node_t* cur = client_list->head;
+  while(cur->next != NULL) {
+    cur = cur->next;
+  }  
+  cur->next  = new_node;
+  return;
+}
+
+
+//Initializes the client node list
+void init_client_list() {
+  client_list = malloc(sizeof(client_list_t));
+  client_list->head = NULL;
+}
+
+
+/*
 
 typedef struct thread_arg {
   int socket_fd;
@@ -129,3 +179,5 @@ int main() {
   }
   close(s);
 }
+
+*/
