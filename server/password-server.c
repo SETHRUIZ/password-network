@@ -10,6 +10,8 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
+//TODO add the global that keeps track of the number of clients we have, that will create the client ids we need
+
 //CLIENT STRUCTS
 typedef struct client {
  struct client* next;
