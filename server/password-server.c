@@ -10,6 +10,24 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
+#define SERVER_PORT 4444
+
+//Response types
+typedef enum {
+  REQUEST_MORE,
+  PASSWORD_FOUND,
+} response_t;
+
+
+//Data packets sent between client and server
+typedef struct packet {
+	int starting;
+	int ending; 
+	int client_id;
+	char password [8];
+	response_t response;
+} packet_t;
+
 //TODO add the global that keeps track of the number of clients we have, that will create the client ids we need
 
 //CLIENT STRUCTS
@@ -25,6 +43,7 @@ typedef struct client_list {
 } client_list_t;
 
 client_list_t* client_list;
+
 
 
 ///////  CLIENT LINKED LIST METHODS   ////////////
@@ -68,7 +87,6 @@ void init_client_list() {
 }
 
 
-/*
 
 typedef struct thread_arg {
   int socket_fd;
@@ -88,7 +106,18 @@ void* client_thread_fn(void* p) {
     perror("dup failed");
     exit(EXIT_FAILURE);
   }
-  
+
+
+  packet_t packet;
+
+  packet.starting = 10;
+  packet.ending = 20;
+  packet.client_id = client_number;
+  packet.is_found = false;
+
+  write(socket_fd_copy, &packet, sizeof(packet_t));
+
+ 
   // Open the socket as a FILE stream so we can use fgets
   FILE* input = fdopen(socket_fd, "r");
   FILE* output = fdopen(socket_fd_copy, "w");
@@ -132,7 +161,7 @@ int main() {
   struct sockaddr_in addr = {
     .sin_addr.s_addr = INADDR_ANY,
     .sin_family = AF_INET,
-    .sin_port = htons(0)
+    .sin_port = htons(SERVER_PORT)
   };
 
   // Bind to the specified address
@@ -182,4 +211,4 @@ int main() {
   close(s);
 }
 
-*/
+
