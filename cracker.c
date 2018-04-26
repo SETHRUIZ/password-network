@@ -7,6 +7,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <unistd.h>
+#include <math.h>
 
 
 #define MAX_USERNAME_LENGTH 24
@@ -194,9 +195,3 @@ bool check_all_converter(uint8_t* hash, char* word){
     return false;
   }
 }
-
-
-
-
-
-
