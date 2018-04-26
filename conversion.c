@@ -9,6 +9,7 @@
 #include <unistd.h>
 #include <math.h>
 
+//switch function from ints to characters
 char int_to_char_map(int number){
   switch(number){
   case 0 :
@@ -68,6 +69,7 @@ char int_to_char_map(int number){
   }
 }
 
+// switch function from characters to ints
 int char_to_int_map(char character){
   switch(character){
   case 'a' :
@@ -126,7 +128,12 @@ int char_to_int_map(char character){
     return 26;
   }
 }
-
+/*converts a double to a string by looping filling an int array with the 
+appropriate int gained from dividing 
+the double by 26 to the power of it's inverse digit 
+then converting the array of ints to a string
+by switching each int with it's corresponding char
+*/
 char* num_to_string_converter(double base26){
   int pass[7];
   for(int i = 0; i < 7; i++){
@@ -139,6 +146,11 @@ char* num_to_string_converter(double base26){
   return password;
 }
 
+/*converts a string to a double by looping through each charcter in the string
+starting with the leftmost charcter
+this character is switched with the corresponding int
+this int is then multiplied by 26 to the power of it's inverse postion in the string
+*/
 double string_to_num_converter(char * str){
   double cur = 0;
   for(int i = 0; i < 7; i++){
@@ -147,12 +159,15 @@ double string_to_num_converter(char * str){
   return cur;
 }
 
+//example main
 int main(){
   char passy[7];
   strcpy(passy, num_to_string_converter(676));
+  //expects aaaabaa
   printf("%s \n", passy);
   int woo;
   woo = (int)string_to_num_converter(passy);
+  //expects 676
   printf(" %d \n", woo);
   return 0;
 }
