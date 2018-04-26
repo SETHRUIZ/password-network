@@ -6,6 +6,22 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netdb.h>
+#include <stdbool.h>
+
+//Response types
+typedef enum {
+  REQUEST_MORE,
+  PASSWORD_FOUND,
+} response_t;
+
+//Data packets sent between client and server
+typedef struct packet {
+  int starting;
+  int ending;
+  int client_id;
+  char password[8]
+  response_t response;
+} packet_t;
 
 int main(int argc, char *argv[]) {
 
@@ -36,14 +52,45 @@ int main(int argc, char *argv[]) {
 	exit(2);
   }
 
-  char buffer[256];
-  int bytes_read = read(s, buffer, 256);
-  if(bytes_read < 0) {
-	perror("read failed");
-	exit(2);
+  while(true) {
+
+    packet_t packet;
+
+    if(read(s, &packet, sizeof(packet_t)) < 0) {
+	  perror("read failed");
+	  exit(2);
+    }
+
+    printf("starting: %d\n", packet.starting);
+    printf("ending: %d\n", packet.ending);
+    printf("client_id: %d\n", packet.client_id);
+    switch(packet.response) {
+      case PASSWORD_FOUND:
+         printf("response: PASWORD_FOUND");
+         break;
+      case REQUEST_MORE: 
+        printf("response: REQUEST_MORE");
+        break;
+    }
+
+    // Check if response is NULL???
+
+    if (packet.response != PASSWORD_FOUND) {
+      /*
+      char password[8];
+      strcpy(password,password_search(starting, ending));
+
+      if (strlen(password) == 7) {
+        strcpy(packet.password, password);
+        packet.response = PASSWORD_FOUND;
+        write(socket_fd_copy, &packet, sizeof(packet_t));  
+      } else {
+        packet.response = REQUEST_MORE;
+        write(socket_fd_copy, &packet, sizeof(packet_t)); 
+      */
+    } else {
+      break;
+    }
   }
-
-  printf("Server sent: %s\n", buffer);
-
-  close(s);
+   close(s);
 }
