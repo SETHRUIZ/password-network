@@ -162,13 +162,19 @@ double string_to_num_converter(char * str){
 //example main
 int main(){
   char passy[7];
-  strcpy(passy, num_to_string_converter(676));
-  //expects aaaabaa
-  printf("%s \n", passy);
-  int woo;
-  woo = (int)string_to_num_converter(passy);
-  //expects 676
-  printf(" %d \n", woo);
+   strcpy(passy, num_to_string_converter(0));
+  //expects aaaaaaa
+   printf(" %s \n", passy);
+  char *start = "aaaaaaa";
+  char *end = "zzzzzzz";
+  double woo;
+  double poo;
+  poo = (double)string_to_num_converter(start);
+  woo = (double)string_to_num_converter(end);
+  //expects 0
+  printf(" %s is equal to %f \n",start,  poo);
+  //expects 8bil
+  printf(" %s is equal to %f \n",end,  woo);
   return 0;
 }
   
