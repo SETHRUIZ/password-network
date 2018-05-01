@@ -11,24 +11,27 @@
 #include <arpa/inet.h>
 
 #define SERVER_PORT 4444
+#define NUM_SLICES 26
+
+bool CLIENT_FOUND = false;
 
 //Response types
 typedef enum {
   REQUEST_MORE,
   PASSWORD_FOUND,
+  KEEP_LOOKING
 } response_t;
 
 
 //Data packets sent between client and server
 typedef struct packet {
-	int starting;
-	int ending; 
+	double starting;
+	double ending; 
 	int client_id;
 	char password [8];
 	response_t response;
 } packet_t;
 
-//TODO add the global that keeps track of the number of clients we have, that will create the client ids we need
 
 //CLIENT STRUCTS
 typedef struct client {
@@ -44,6 +47,52 @@ typedef struct client_list {
 
 client_list_t* client_list;
 
+
+typedef struct thread_node {
+	pthread_t thread;
+	struct thread_node* next;
+} thread_node_t;
+
+// Linked List of Threads
+typedef struct threads {
+	 thread_node_t* head_thread;
+} threads_list_t;
+
+
+
+threads_list_t* threads_list;
+
+
+void append_thread_node(pthread_t thread) {
+	//allocate memory for the new thread
+	thread_node_t* new_thread = malloc(sizeof(thread_node_t));
+
+	if(new_thread == NULL) {
+		perror("Malloc failed thread create linked list\n");
+		exit(EXIT_FAILURE);
+	}
+
+	new_thread->next = NULL;
+
+	if(threads_list->head_thread == NULL) {
+		threads_list->head_thread = new_thread;
+		return;
+	}
+
+	thread_node_t* cur = threads_list->head_thread;
+	while(cur->next != NULL) {
+		cur = cur->next;
+	}
+	cur->next = new_thread;
+}
+
+void join_threads() {
+	thread_node_t* cur = threads_list->head_thread;
+	while(cur != NULL) {
+		pthread_join(cur->thread, NULL);
+		cur = cur->next;
+	}
+}
 
 
 ///////  CLIENT LINKED LIST METHODS   ////////////
@@ -86,6 +135,11 @@ void init_client_list() {
   client_list->head = NULL;
 }
 
+void init_thread_list() {
+	threads_list = malloc(sizeof(threads_list_t));
+	threads_list->head_thread = NULL;
+}
+
 
 
 typedef struct thread_arg {
@@ -107,45 +161,48 @@ void* client_thread_fn(void* p) {
     exit(EXIT_FAILURE);
   }
 
-
   packet_t packet;
 
   packet.starting = 10;
   packet.ending = 20;
   packet.client_id = client_number;
-  packet.is_found = false;
+  packet.response = KEEP_LOOKING;
 
   write(socket_fd_copy, &packet, sizeof(packet_t));
 
- 
-  // Open the socket as a FILE stream so we can use fgets
-  FILE* input = fdopen(socket_fd, "r");
-  FILE* output = fdopen(socket_fd_copy, "w");
-  
-  // Check for errors
-  if(input == NULL || output == NULL) {
-    perror("fdopen failed");
-    exit(EXIT_FAILURE);
+  // Checks to see if any other thread has found the password
+  while (CLIENT_FOUND == false) {
+  	// Check to see if the client has updated their response since we assigned it to them
+    while (KEEP_LOOKING == packet.response) {
+      // Reads the response from the client and updates the packet on the server end
+      read(socket_fd_copy, &packet, sizeof(packet_t));
+        // If the client's responds that it found the password, update the global to alert 
+        // the other threads, return the password and break
+        switch(packet.response) {
+          case KEEP_LOOKING:
+            printf("I'm not sure why this would ever print.\n");
+            break;
+          case PASSWORD_FOUND:
+            CLIENT_FOUND = true;
+            printf("Client %d found password: %s\n", packet.client_id, packet.password);
+            break;
+          case REQUEST_MORE: 
+            // Else, update the packet with the next slice and send it back to the client
+            packet.starting = 10;
+            packet.ending = 20;
+            packet.client_id = client_number;
+            packet.response = KEEP_LOOKING;
+            write(socket_fd_copy, &packet, sizeof(packet_t));
+            break;
+        }
+    }
   }
-  
-  // Read lines until we hit the end of the input (the client disconnects)
-  char* line = NULL;
-  size_t linecap = 0;
-  while(getline(&line, &linecap, input) > 0) {
-    // Print a message on the server
-    printf("Client %d sent %s", client_number, line);
-    
-    // Send the message to the client. Flush the buffer so the message is actually sent.
-    fprintf(output, "%s", line);
-    fflush(output);
-  }
-  
-  // When we're done, we should free the line from getline
-  free(line);
-  
-  // Print information on the server side
-  printf("Client %d disconnected.\n", client_number);
-  
+  // The client that found the password will obviously already have this,
+  // but this is for the other clients, as it tells them someone found the password,
+  // thus prompting them to close their sockets and applications
+  packet.response = PASSWORD_FOUND;
+  write(socket_fd_copy, &packet, sizeof(packet_t));
+  printf("Client %d disconnected.\n", packet.client_id);
   return NULL;
 }
 
@@ -181,6 +238,7 @@ int main() {
   printf("Listening on port %d\n", ntohs(addr.sin_port));
   
   int client_count = 0;
+  init_thread_list();
 
   // Repeatedly accept connections
   while(true) {
@@ -205,10 +263,17 @@ int main() {
       perror("pthread_create failed");
       exit(EXIT_FAILURE);
     }
-    
+
+    append_thread_node(thread);
     client_count++;
   }
+
+  join_threads();
+ 
   close(s);
+  printf("We've now closed and joined.\n");
+
+  return 0;
 }
 
 
