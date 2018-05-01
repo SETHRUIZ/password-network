@@ -82,11 +82,19 @@ int main(int argc, char** argv) {
   for(int d = 0; d < NUM_THREADS; d++) {
     pthread_join(threads[d], NULL);
   }
-
+  // discrepancy between thread_args and args???
+  for(int j = 0; j < NUM_THREADS; j++){
+    
   //check all args->holders
-  // if any strlen(args->holder = 7) then convert holder to a num
+  // if one of the threads found a password
+    if(strlen(thread_args[i]->holder = 7)){
+     double found_pass = string_to_num_converter(thread_args[i]->holder);
   // send num_holder to server
+     return 0;
+    }
+  }
   // else send "nope" to server and it checks for length
+  return 0;
 }
 
 
