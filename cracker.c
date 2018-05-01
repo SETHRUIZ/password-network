@@ -38,7 +38,6 @@ char* create_word(char c);
 
 int main(int argc, char** argv) {
 
-  char alph[NUM_THREADS][PASSWORD_LENGTH + 1]; //This will store all starting words of the same letter "aaaaaa" ... "zzzzzz"
   pthread_t threads[NUM_THREADS];  //holds our threads
   thread_args_t thread_args[NUM_THREADS]; //holds all the thread arguments
 
@@ -48,7 +47,7 @@ int main(int argc, char** argv) {
   }
 
   // Read in the password file
-  password_entry_t* password_entries = read_password_file(argv[1]);
+ uint8_t* hashh = argv[1];
   double start = argv[2];
   double end = argv[3];
   //probably have to floor or ceiling this and keep track of that
@@ -64,9 +63,10 @@ int main(int argc, char** argv) {
     thread_args_t args;
     args.passwords = password_entries;
     start_num +=  slice_size;
-    end_num = start + slice_size - 1;
+    end_num = start_num + slice_size - 1;
     args.start_num = start;
     args.end_num = end;
+    args.hash = hashh;
     thread_args[i] = args;
 
     //pass to thread
@@ -83,14 +83,10 @@ int main(int argc, char** argv) {
     pthread_join(threads[d], NULL);
   }
 
-  //print all the cracked passwords and usernames
-  password_entry_t* current = password_entries;
-  while(current != NULL) {
-    printf("%s ", current->username);
-    printf("%s \n", current->crackedword);
-    current = current->next;
-  }
-
+  //check all args->holders
+  // if any strlen(args->holder = 7) then convert holder to a num
+  // send num_holder to server
+  // else send "nope" to server and it checks for length
 }
 
 
@@ -113,15 +109,17 @@ void* crack_passwords_thread(void* void_args)) {
 //TODO
 
 
-//check_range
-// @param start_word: a string
-// @param k: an integer that indicates index of character that needs to be changed
+//check_if the password exists in the given range
+// @param start_num: a double
+// @param end_num: a double
 // @param hash: a hashed password
+// @param holder: a string
 void check_range(double start_num, double end_num,  uint8_t* hash, char *holder) {
   double cur;
   for(cur = start_num; cur <= end_num; cur++){
-    if(check_all_converter(hash, num_to_string_converter(start))){
-      strcpy(holder, start_word);
+    char* cur_word = num_to_string_converter(start);
+    if(check_all_converter(hash, cur_word)){
+      strcpy(holder, cur_word);
       return;
     }
   }
