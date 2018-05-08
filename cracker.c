@@ -8,6 +8,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <math.h>
+#include <pthread.h>
 
 
 #define MAX_USERNAME_LENGTH 24
@@ -27,19 +28,22 @@ typedef struct thread_args {
   char holder[7];
 } thread_args_t;
 
+thread_args_t thread_args[NUM_THREADS]; //holds all the thread arguments
+
 //function signatures
-password_entry_t* read_password_file(const char* filename);
 int md5_string_to_bytes(const char* md5_string, uint8_t* bytes);
 void print_md5_bytes(const uint8_t* bytes);
-void check_all_converter(password_entry_t* passwords, char* word);
-void check_range(char* start_word, int k, password_entry_t* passwords);
+bool check_all_converter(uint8_t* hash, char* word);
+void check_range(double start_num, double end_num,  uint8_t* hash, char *holder);
 void* crack_passwords_thread(void* void_args);
-char* create_word(char c); 
+char* create_word(char c);
+void* crack_passwords_thread2();
 
 int main(int argc, char** argv) {
 
   pthread_t threads[NUM_THREADS];  //holds our threads
-  thread_args_t thread_args[NUM_THREADS]; //holds all the thread arguments
+  //make this a global?
+  //thread_args_t thread_args[NUM_THREADS]; //holds all the thread arguments
 
   if(argc != 4) {
     fprintf(stderr, "Usage: %s <path to password directory file>\n", argv[0]);
@@ -47,9 +51,12 @@ int main(int argc, char** argv) {
   }
 
   // Read in the password file
- uint8_t* hashh = argv[1];
-  double start = argv[2];
-  double end = argv[3];
+  uint8_t* hashh;
+  memmove(hashh, argv[1], sizeof(uint8_t*));
+ double start;
+    sscanf(argv[2], "%lf", &start);
+    double end;
+    sscanf(argv[3], "%lf", &start);
   //probably have to floor or ceiling this and keep track of that
   double slice_size = floor((end - start)/NUM_THREADS);
   double start_num = 0;
@@ -61,12 +68,12 @@ int main(int argc, char** argv) {
 
     //create the args
     thread_args_t args;
-    args.passwords = password_entries;
     start_num +=  slice_size;
     end_num = start_num + slice_size - 1;
     args.start_num = start;
     args.end_num = end;
-    args.hash = hashh;
+    memmove(args.hash, hashh, sizeof(uint8_t*));
+    // args.hash = hashh;
     thread_args[i] = args;
 
     //pass to thread
@@ -87,8 +94,8 @@ int main(int argc, char** argv) {
     
   //check all args->holders
   // if one of the threads found a password
-    if(strlen(thread_args[i]->holder = 7)){
-     double found_pass = string_to_num_converter(thread_args[i]->holder);
+    if(strlen(thread_args[j].holder) == 7){
+     double found_pass = string_to_num_converter(thread_args[j].holder);
   // send num_holder to server
      return 0;
     }
@@ -102,17 +109,18 @@ int main(int argc, char** argv) {
 //crack_passwords_thread
 //  @param void_args: thread_args_t
 //  @return: thread_args_t type
-void* crack_passwords_thread(void* void_args)) {
+void* crack_passwords_thread(void* void_args) {
 
   thread_args_t* args = (thread_args_t*) void_args;
   uint8_t* hash = args->hash;
         
   //check for  passwords starting from start num to end num
-  check_range(args->start_nums, args->end_num, PASSWORD_LENGTH, hash, args->holder);
-  free(start_word);
+  check_range(args->start_num, args->end_num, hash, args->holder);
 
-  return (void*) args;  
-                                                            }
+  return (void*) args;
+}
+
+
 
 //TODO
 
@@ -125,7 +133,7 @@ void* crack_passwords_thread(void* void_args)) {
 void check_range(double start_num, double end_num,  uint8_t* hash, char *holder) {
   double cur;
   for(cur = start_num; cur <= end_num; cur++){
-    char* cur_word = num_to_string_converter(start);
+    char* cur_word = num_to_string_converter(cur);
     if(check_all_converter(hash, cur_word)){
       strcpy(holder, cur_word);
       return;
@@ -185,14 +193,12 @@ void print_md5_bytes(const uint8_t* bytes) {
 //
 // given word, compares the md5 hash for that word with hashcheck
 bool check_all_converter(uint8_t* hash, char* word){
-
   uint8_t password_ciphertest[MD5_DIGEST_LENGTH];
   MD5((unsigned char*)word, strlen(word), password_ciphertest);
 
   //compare word's MD5 hash with the given hash  
   if(memcmp(hash, password_ciphertest, MD5_DIGEST_LENGTH) == 0) {	
     return true;
-  } else {
-    return false;
   }
+  return false;
 }
