@@ -1,0 +1,82 @@
+#define _GNU_SOURCE
+#include <pthread.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <openssl/md5.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <string.h>
+#include <unistd.h>
+#include <math.h>
+
+
+char* num_to_string_converter(long base26){
+  int pass[7];
+  for(float i = 0; i < 7; i++){
+    pass[i] = (int)(base26/( pow(26, i))) % 26;
+  }
+  char*password[7];
+  for(int i = 0; i < 7;i++){
+    password[i] = int_to_char_map(pass[i]);
+}
+  return password;
+}
+
+char int_to_char_map(int number){
+  if(number == 0){
+    return 'a';
+  } else if(number == 1){
+    return 'b';
+  } else if(number == 2){
+    return 'c';
+  } else if(number == 3){
+    return 'd';
+  } else if(number == 4){
+    return 'e';
+  } else if(number == 5){
+    return 'f';
+  } else if(number == 6){
+    return 'g';
+  } else if(number == 7){
+    return 'h';
+  } else if(number == 8){
+    return 'i';
+  } else if(number == 9){
+    return 'j';
+  } else if(number == 10){
+    return 'k';
+  } else if(number == 11){
+    return 'l';
+  } else if(number == 12){
+    return 'm';
+  } else if(number == 13){
+    return 'n';
+  } else if(number == 14){
+    return 'o';
+  } else if(number == 15){
+    return 'p';
+  } else if(number == 16){
+    return 'q';
+  } else if(number == 17){
+    return 'r';
+  } else if(number == 18){
+    return 's';
+  } else if(number == 19){
+    return 't';
+  } else if(number == 20){
+    return 'u';
+  } else if(number == 21){
+    return 'v';
+  } else if(number == 22){
+    return 'w';
+  } else if(number == 23){
+    return 'x';
+  } else if(number == 24){
+    return 'y';
+  } else if(number == 25){
+    return 'z';
+  } else {
+    return NULL;
+  }
+}
+  
