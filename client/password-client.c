@@ -7,19 +7,21 @@
 #include <netinet/in.h>
 #include <netdb.h>
 #include <stdbool.h>
+#include <time.h>
 
 //Response types
 typedef enum {
   REQUEST_MORE,
   PASSWORD_FOUND,
+  KEEP_LOOKING
 } response_t;
 
 //Data packets sent between client and server
 typedef struct packet {
-  int starting;
-  int ending;
+  double starting;
+  double ending;
   int client_id;
-  char password[8]
+  char password[8];
   response_t response;
 } packet_t;
 
@@ -52,45 +54,56 @@ int main(int argc, char *argv[]) {
 	exit(2);
   }
 
+  srand(time(0));
+  int i = 0;
+  char passwords[5][8] = {"NOPE", "NOPE", "NOPE", "NOPE", "abcdefg" };
+
   while(true) {
 
     packet_t packet;
+
+    char password[8];
 
     if(read(s, &packet, sizeof(packet_t)) < 0) {
 	  perror("read failed");
 	  exit(2);
     }
 
-    printf("starting: %d\n", packet.starting);
-    printf("ending: %d\n", packet.ending);
+    printf("starting: %f\n", packet.starting);
+    printf("ending: %f\n", packet.ending);
     printf("client_id: %d\n", packet.client_id);
+    
     switch(packet.response) {
-      case PASSWORD_FOUND:
-         printf("response: PASWORD_FOUND");
-         break;
       case REQUEST_MORE: 
-        printf("response: REQUEST_MORE");
-        break;
-    }
+        close(s);
+        printf("We've lost connection to the server.\n");
+        exit(EXIT_FAILURE);
+      case PASSWORD_FOUND:
+        printf("response: PASSWORD_FOUND\n");
+        close(s);
+        printf("I've diconnected.\n");
+        exit (EXIT_SUCCESS);
+      case KEEP_LOOKING:
+        //strcpy(password,password_search(starting, ending));
+        //password = "abcdefg";
+        printf("I'm looking here.\n");
+        printf("Current index is: %s\n", passwords[i]);
 
-    // Check if response is NULL???
+        sleep(rand() % 1);
 
-    if (packet.response != PASSWORD_FOUND) {
-      /*
-      char password[8];
-      strcpy(password,password_search(starting, ending));
-
-      if (strlen(password) == 7) {
-        strcpy(packet.password, password);
-        packet.response = PASSWORD_FOUND;
-        write(socket_fd_copy, &packet, sizeof(packet_t));  
-      } else {
-        packet.response = REQUEST_MORE;
-        write(socket_fd_copy, &packet, sizeof(packet_t)); 
-      */
-    } else {
-      break;
+        //If password has not been found, request for a new search space
+        if (strcmp(passwords[i++], "NOPE") == 0) {
+          printf("strcmp was successful.\n");
+          packet.response = REQUEST_MORE;
+          write(s, &packet, sizeof(packet_t)); 
+        } else {
+          //else we found password, send password back to server
+          strcpy(packet.password, passwords[i-1]);
+          packet.response = PASSWORD_FOUND;
+          printf("Password is: %s\n", packet.password);
+          write(s, &packet, sizeof(packet_t));
+        }
     }
   }
-   close(s);
+  return 0;
 }
