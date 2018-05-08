@@ -8,12 +8,14 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <sys/time.h>
 #include <arpa/inet.h>
 
 #define SERVER_PORT 4444
 #define NUM_SLICES 26
 
 bool CLIENT_FOUND = false;
+int s = 0;
 
 //Response types
 typedef enum {
@@ -38,6 +40,7 @@ typedef struct client {
  struct client* next;
  int client_id;
  int port;
+ int client_socket;
  char ipstr[INET_ADDRSTRLEN]; 
 } client_node_t;
 
@@ -58,10 +61,13 @@ typedef struct threads {
 	 thread_node_t* head_thread;
 } threads_list_t;
 
+typedef struct thread_arg {
+  int socket_fd;
+  int client_number;
+} thread_arg_t;
 
 
 threads_list_t* threads_list;
-
 
 void append_thread_node(pthread_t thread) {
 	//allocate memory for the new thread
@@ -94,12 +100,10 @@ void join_threads() {
 	}
 }
 
-
 ///////  CLIENT LINKED LIST METHODS   ////////////
 
 //Appends client node to linked list
 void append_node(int client_id, int port, char* ipstr) {
-
   //allocate memory for the new client node
   client_node_t* new_node = malloc(sizeof(client_node_t));
   if(new_node == NULL) {
@@ -128,8 +132,6 @@ void append_node(int client_id, int port, char* ipstr) {
   return;
 }
 
-
-//Initializes the client node list
 void init_client_list() {
   client_list = malloc(sizeof(client_list_t));
   client_list->head = NULL;
@@ -140,12 +142,19 @@ void init_thread_list() {
 	threads_list->head_thread = NULL;
 }
 
+void shut_down() {
+  join_threads();
+  close(s);
+  exit(EXIT_SUCCESS);
+}
 
-
-typedef struct thread_arg {
-  int socket_fd;
-  int client_number;
-} thread_arg_t;
+void* time_out_fn(void* p) {
+printf("Waiting for remaining clients now\n");
+sleep(15);
+printf("TIME OUT FINISHED, SERVER SHUTTING DOWN\n");
+shut_down();
+return NULL;
+}
 
 void* client_thread_fn(void* p) {
   // Unpack the thread arguments
@@ -156,13 +165,12 @@ void* client_thread_fn(void* p) {
   
   // Duplicate the socket_fd so we can open it twice, once for input and once for output
   int socket_fd_copy = dup(socket_fd);
-  if(socket_fd_copy == -1) {
+  if (socket_fd_copy == -1) {
     perror("dup failed");
     exit(EXIT_FAILURE);
   }
 
   packet_t packet;
-
   packet.starting = 10;
   packet.ending = 20;
   packet.client_id = client_number;
@@ -170,36 +178,37 @@ void* client_thread_fn(void* p) {
 
   write(socket_fd_copy, &packet, sizeof(packet_t));
 
-  // Checks to see if any other thread has found the password
-  while (CLIENT_FOUND == false) {
-  	// Check to see if the client has updated their response since we assigned it to them
-    while (KEEP_LOOKING == packet.response) {
+  while (!CLIENT_FOUND) {
       // Reads the response from the client and updates the packet on the server end
       read(socket_fd_copy, &packet, sizeof(packet_t));
         // If the client's responds that it found the password, update the global to alert 
         // the other threads, return the password and break
         switch(packet.response) {
-          case KEEP_LOOKING:
-            printf("I'm not sure why this would ever print.\n");
-            break;
           case PASSWORD_FOUND:
             CLIENT_FOUND = true;
+            packet.client_id = client_number;
+            packet.response = PASSWORD_FOUND;
+            write(socket_fd_copy, &packet, sizeof(packet_t)); 
             printf("Client %d found password: %s\n", packet.client_id, packet.password);
+             //Create time out for remaining clients
+  		  	pthread_t thread;
+   		 	if(pthread_create(&thread, NULL, time_out_fn, NULL)) {
+      		perror("pthread_create failed");
+     		 exit(EXIT_FAILURE);
+    		}
             break;
           case REQUEST_MORE: 
-            // Else, update the packet with the next slice and send it back to the client
             packet.starting = 10;
             packet.ending = 20;
             packet.client_id = client_number;
             packet.response = KEEP_LOOKING;
             write(socket_fd_copy, &packet, sizeof(packet_t));
             break;
+          default:
+            printf("I'm not sure why this would ever print.\n");
         }
-    }
   }
-  // The client that found the password will obviously already have this,
-  // but this is for the other clients, as it tells them someone found the password,
-  // thus prompting them to close their sockets and applications
+
   packet.response = PASSWORD_FOUND;
   write(socket_fd_copy, &packet, sizeof(packet_t));
   printf("Client %d disconnected.\n", packet.client_id);
@@ -208,7 +217,8 @@ void* client_thread_fn(void* p) {
 
 int main() {
   // Set up a socket
-  int s = socket(AF_INET, SOCK_STREAM, 0);
+  s = socket(AF_INET, SOCK_STREAM, 0);
+
   if(s == -1) {
     perror("socket");
     exit(2);
@@ -239,12 +249,14 @@ int main() {
   
   int client_count = 0;
   init_thread_list();
+  init_client_list();
 
   // Repeatedly accept connections
   while(true) {
     // Accept a client connection
     struct sockaddr_in client_addr;
     socklen_t client_addr_len = sizeof(struct sockaddr_in);
+
     int client_socket = accept(s, (struct sockaddr*)&client_addr, &client_addr_len);
     
     char ipstr[INET_ADDRSTRLEN];
@@ -264,16 +276,12 @@ int main() {
       exit(EXIT_FAILURE);
     }
 
+    append_node(client_count, client_socket, ipstr);
     append_thread_node(thread);
     client_count++;
   }
-
-  join_threads();
  
-  close(s);
-  printf("We've now closed and joined.\n");
-
-  return 0;
+ return 0;
 }
 
 
