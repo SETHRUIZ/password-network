@@ -71,17 +71,17 @@ int main(int argc, char *argv[]) {
 
     printf("starting: %f\n", packet.starting);
     printf("ending: %f\n", packet.ending);
-    printf("client_id: %d\n", packet.client_id);
+  //  printf("client_id: %d\n", packet.client_id);
     
     switch(packet.response) {
       case REQUEST_MORE: 
         close(s);
-        printf("We've lost connection to the server.\n");
+        printf("Error: We've lost connection to the server.\n");
         exit(EXIT_FAILURE);
       case PASSWORD_FOUND:
-        printf("response: PASSWORD_FOUND\n");
+        printf("Password has been found.\n");
         close(s);
-        printf("I've diconnected.\n");
+        printf("I've disconnected.\n");
         exit (EXIT_SUCCESS);
       case KEEP_LOOKING:
         //strcpy(password,password_search(starting, ending));
@@ -89,17 +89,17 @@ int main(int argc, char *argv[]) {
         printf("I'm looking here.\n");
         printf("Current index is: %s\n", passwords[i]);
 
-        sleep(rand() % 1);
+        sleep(rand() % 10);
 
         //If password has not been found, request for a new search space
         if (strcmp(passwords[i++], "NOPE") == 0) {
-          printf("strcmp was successful.\n");
           packet.response = REQUEST_MORE;
           write(s, &packet, sizeof(packet_t)); 
         } else {
           //else we found password, send password back to server
           strcpy(packet.password, passwords[i-1]);
           packet.response = PASSWORD_FOUND;
+          printf("I FOUND THE PASSWORD.\n");
           printf("Password is: %s\n", packet.password);
           write(s, &packet, sizeof(packet_t));
         }
