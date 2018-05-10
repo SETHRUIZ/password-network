@@ -22,8 +22,11 @@ typedef struct packet {
   double ending;
   int client_id;
   char password[8];
+  char hash[33];
   response_t response;
 } packet_t;
+
+int client_id = 0;
 
 int main(int argc, char *argv[]) {
 
@@ -54,6 +57,7 @@ int main(int argc, char *argv[]) {
 	exit(2);
   }
 
+ //TODO, REMOVE THESE 3 LINES
   srand(time(0));
   int i = 0;
   char passwords[5][8] = {"NOPE", "NOPE", "NOPE", "NOPE", "abcdefg" };
@@ -61,7 +65,6 @@ int main(int argc, char *argv[]) {
   while(true) {
 
     packet_t packet;
-
     char password[8];
 
     if(read(s, &packet, sizeof(packet_t)) < 0) {
@@ -69,25 +72,30 @@ int main(int argc, char *argv[]) {
 	  exit(2);
     }
 
+    client_id = packet.client_id;
+    printf("hash: %s\n", packet.hash);
     printf("starting: %f\n", packet.starting);
     printf("ending: %f\n", packet.ending);
-  //  printf("client_id: %d\n", packet.client_id);
+
+
     
     switch(packet.response) {
       case REQUEST_MORE: 
         close(s);
-        printf("Error: We've lost connection to the server.\n");
+        perror("Error: We've lost connection to the server.\n");
         exit(EXIT_FAILURE);
       case PASSWORD_FOUND:
-        printf("Password has been found.\n");
+        printf("Password found, disconnecting...\n");
         close(s);
-        printf("I've disconnected.\n");
         exit (EXIT_SUCCESS);
       case KEEP_LOOKING:
-        //strcpy(password,password_search(starting, ending));
-        //password = "abcdefg";
-        printf("I'm looking here.\n");
-        printf("Current index is: %s\n", passwords[i]);
+        printf("Searching...\n");
+
+        //TODO REPLACE SLEEP WITH SETH'S PASSWORD LOOKUP HERE
+          // - get the starting double with packet.starting
+          // - get the ending double with packet.ending
+          // - get the hash by doing a memcpy of packet.hash
+          // - pass it to seth's password lookup method
 
         sleep(rand() % 10);
 
@@ -99,10 +107,12 @@ int main(int argc, char *argv[]) {
           //else we found password, send password back to server
           strcpy(packet.password, passwords[i-1]);
           packet.response = PASSWORD_FOUND;
-          printf("I FOUND THE PASSWORD.\n");
-          printf("Password is: %s\n", packet.password);
+          printf("I FOUND THE PASSWORD: ");
+          printf("%s\n", packet.password);
           write(s, &packet, sizeof(packet_t));
         }
+
+        //TODO: consider adding default case(good programming practice)
     }
   }
   return 0;
