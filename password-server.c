@@ -11,6 +11,7 @@
 #include <sys/time.h>
 #include <arpa/inet.h>
 #include <math.h>
+#include "cracker.h"
 
 #define SERVER_PORT 4444
 #define NUM_SLICES 1024
@@ -80,7 +81,7 @@ typedef struct thread_arg {
 
 threads_list_t* threads_list;
 slice_t slices[NUM_SLICES];
-char HASH[] = "e2efd0c1309976a8a2aa5dec92d435cb";
+char HASH[] = "f0e8fb430bbdde6ae9c879a518fd895f";
 
 //function signatures
 int get_search_space(); 
@@ -146,6 +147,8 @@ int main() {
     inet_ntop(AF_INET, &client_addr.sin_addr, ipstr, INET_ADDRSTRLEN);
     
     printf("Client %d connected from %s\n", client_count, ipstr);
+
+  /* ----------------- SEG FAULT HERE -------------------*/
     
     // Set up arguments for the client thread
     thread_arg_t* args = malloc(sizeof(thread_arg_t));

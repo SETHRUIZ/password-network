@@ -9,6 +9,7 @@
 #include <unistd.h>
 #include <math.h>
 #include <pthread.h>
+#include "cracker.h"
 
 
 #define MAX_USERNAME_LENGTH 24
@@ -191,7 +192,7 @@ void* crack_passwords_thread(void* void_args);
 char* create_word(char c);
 void* crack_passwords_thread2();
 
-int main(int argc, char** argv) {
+char* find_password(double starting, double ending, char* hash) {
 
   pthread_t threads[NUM_THREADS];  //holds our threads
   //make this a global?
@@ -204,12 +205,12 @@ int main(int argc, char** argv) {
 
   // Read in the password file
    uint8_t hashh[MD5_DIGEST_LENGTH+1];
-   char *hashstring = "b05cd52f07a80e25c09d9f152219cf98";
+   char *hashstring = hash;
     md5_string_to_bytes(hashstring, hashh);
     //memmove(hashh,argv[1], sizeof(uint8_t*));
-    double start = 0.0;
+    double start = starting;
  // sscanf(argv[2], "%lf", &start);
-    double end = 90000000000.0;
+    double end = ending;
     // sscanf(argv[3], "%lf", &start);
   //probably have to floor or ceiling this and keep track of that
   double slice_size = ceil((end - start)/NUM_THREADS);
@@ -251,14 +252,12 @@ int main(int argc, char** argv) {
     if(strlen(thread_args[j].holder) == 7){
      double found_pass = string_to_num_converter(thread_args[j].holder);
      //do what you want, like send password to server
-     printf("password found, %s \n", thread_args[j].holder);
-     return 0;
+     return thread_args[j].holder;
     }
   }
   //send to servere "nope"
   // else send "nope" to server and it checks for length
-  printf("password not found \n");
-  return 0;
+  return "NOPE";
 }
 
 

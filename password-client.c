@@ -8,6 +8,7 @@
 #include <netdb.h>
 #include <stdbool.h>
 #include <time.h>
+#include "cracker.h"
 
 //Response types
 typedef enum {
@@ -57,11 +58,6 @@ int main(int argc, char *argv[]) {
 	exit(2);
   }
 
- //TODO, REMOVE THESE 3 LINES
-  srand(time(0));
-  int i = 0;
-  char passwords[5][8] = {"NOPE", "NOPE", "NOPE", "NOPE", "abcdefg" };
-
   while(true) {
 
     packet_t packet;
@@ -97,19 +93,21 @@ int main(int argc, char *argv[]) {
           // - get the hash by doing a memcpy of packet.hash
           // - pass it to seth's password lookup method
 
-        sleep(rand() % 10);
+        strcpy(password, find_password(packet.starting, packet.ending, packet.hash));
 
         //If password has not been found, request for a new search space
-        if (strcmp(passwords[i++], "NOPE") == 0) {
+        if (strcmp(password, "NOPE") == 0) {
           packet.response = REQUEST_MORE;
-          write(s, &packet, sizeof(packet_t)); 
+          write(s, &packet, sizeof(packet_t));
+          sleep(5); 
         } else {
           //else we found password, send password back to server
-          strcpy(packet.password, passwords[i-1]);
+          strcpy(packet.password, password);
           packet.response = PASSWORD_FOUND;
           printf("I FOUND THE PASSWORD: ");
           printf("%s\n", packet.password);
           write(s, &packet, sizeof(packet_t));
+          sleep(5);
         }
 
         //TODO: consider adding default case(good programming practice)
