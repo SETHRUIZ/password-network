@@ -1,3 +1,4 @@
+
 #define _GNU_SOURCE
 #include <pthread.h>
 #include <stdio.h>
@@ -135,14 +136,17 @@ then converting the array of ints to a string
 by switching each int with it's corresponding char
 */
 char* num_to_string_converter(double base26){
-  int pass[7];
+  int pass[7] = {0};
   for(int i = 0; i < 7; i++){
-    pass[6 - i] = ((int)(base26/(pow((double)26, (double)i))) % 26);
+    int num = (int) (fmod((base26 / pow(26, i)) , 26));
+    pass[6 - i] =  num;
   }
+
   char * password = malloc(sizeof(char) * 7);
   for(int i = 0; i < 7;i++){
     password[i] = int_to_char_map(pass[i]);
-}
+	}
+
   return password;
 }
 
@@ -162,19 +166,9 @@ double string_to_num_converter(char * str){
 //example main
 int main(){
   char passy[7];
-   strcpy(passy, num_to_string_converter(0));
+  strcpy(passy, num_to_string_converter(2147483648.000));
   //expects aaaaaaa
-   printf(" %s \n", passy);
-  char *start = "aaaaaaa";
-  char *end = "zzzzzzz";
-  double woo;
-  double poo;
-  poo = (double)string_to_num_converter(start);
-  woo = (double)string_to_num_converter(end);
-  //expects 0
-  printf(" %s is equal to %f \n",start,  poo);
-  //expects 8bil
-  printf(" %s is equal to %f \n",end,  woo);
+  printf(" %s\n",passy);
   return 0;
 }
   

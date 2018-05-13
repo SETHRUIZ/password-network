@@ -11,14 +11,80 @@
 #include <pthread.h>
 #include "cracker.h"
 
+//Citations 
+//  TODO 
 
+// Constants
 #define MAX_USERNAME_LENGTH 24
 #define PASSWORD_LENGTH 7
-//dont just divide up by alphabet, divide up by start and end word
 #define NUM_THREADS 30
 
+// Thread args
+typedef struct thread_args {
+ double start_num;
+ double end_num;
+ uint8_t hash[MD5_DIGEST_LENGTH+1];
+  char holder[PASSWORD_LENGTH + 1];
+  bool password_found;
+} thread_args_t;
 
-//switch function from ints to characters
+// Global variables
+thread_args_t thread_args[NUM_THREADS]; 
+pthread_t threads[NUM_THREADS];  
+
+// Function signatures
+int md5_string_to_bytes(const char* md5_string, uint8_t* bytes);
+int char_to_int_map(char character);
+void check_range(double start_num, double end_num,  uint8_t* hash, char *holder, bool* password_found);
+void* crack_passwords_thread(void* void_args);
+char* create_word(char c);
+char int_to_char_map(int number);
+bool check_all_converter(uint8_t* hash, char* word);
+
+/* Searches for matching password given a range*/
+char* find_password(double starting, double ending, char* hash) {
+  uint8_t hash_bytes[MD5_DIGEST_LENGTH+1];
+  md5_string_to_bytes(hash, hash_bytes);
+  double SLICE_SIZE = ceil((ending - starting) / NUM_THREADS);
+  double start_num = starting;
+
+  for(int i = 0; i < NUM_THREADS; i++) {
+    // Create slice args
+    thread_args_t args;
+    args.password_found = false;
+    args.start_num = start_num;
+    args.end_num = start_num + SLICE_SIZE;
+
+    // Update start_num
+    start_num += SLICE_SIZE + 1;
+
+    memmove(args.hash, hash_bytes,MD5_DIGEST_LENGTH + 1);
+    thread_args[i] = args;
+
+    // Create thread, pass args and run it
+    pthread_t thread;
+    if(pthread_create(&threads[i], NULL, crack_passwords_thread, &thread_args[i]) != 0) {
+      perror("Failed to create thread");
+      exit(2);
+    } 
+  }
+
+  // Join all threads
+  for(int d = 0; d < NUM_THREADS; d++) {
+    pthread_join(threads[d], NULL);
+  }
+
+  // If any thread found password, return password
+  for(int j = 0; j < NUM_THREADS; j++){ 
+    if(thread_args[j].password_found) {
+     return thread_args[j].holder;
+    }
+  }
+  // Password not found
+  return "NOPE";
+}
+
+// Switch ints to characters
 char int_to_char_map(int number){
   switch(number){
   case 0 :
@@ -78,7 +144,7 @@ char int_to_char_map(int number){
   }
 }
 
-// switch function from characters to ints
+// Switch characters to ints
 int char_to_int_map(char character){
   switch(character){
   case 'a' :
@@ -137,29 +203,36 @@ int char_to_int_map(char character){
     return 26;
   }
 }
-/*converts a double to a string by looping filling an int array with the 
+
+/* Converts a double to a string by looping filling an int array with the 
 appropriate int gained from dividing 
 the double by 26 to the power of it's inverse digit 
 then converting the array of ints to a string
-by switching each int with it's corresponding char
-*/
+by switching each int with it's corresponding char */
 char* num_to_string_converter(double base26){
   int pass[7];
-  for(int i = 0; i < 7; i++){
-    pass[6 - i] = ((int)(base26/(pow((double)26, (double)i))) % 26);
+  
+  for(int i = 0; i < 7; i++) {
+    int num = (int) (fmod((base26 / pow(26, i)), 26));
+    pass[6 - i] = num;
   }
-  char * password = malloc(sizeof(char) * 7);
+
+  char* password = malloc(sizeof(char) * 7);
+  if(password == NULL) {
+    perror("Something went wrong with password malloc\n");
+    exit(EXIT_FAILURE);
+  }
+
   for(int i = 0; i < 7;i++){
     password[i] = int_to_char_map(pass[i]);
 }
   return password;
 }
 
-/*converts a string to a double by looping through each charcter in the string
+/* Converts a string to a double by looping through each charcter in the string
 starting with the leftmost charcter
 this character is switched with the corresponding int
-this int is then multiplied by 26 to the power of it's inverse postion in the string
-*/
+this int is then multiplied by 26 to the power of it's inverse postion in the string */
 double string_to_num_converter(char * str){
   double cur = 0;
   for(int i = 0; i < 7; i++){
@@ -168,137 +241,34 @@ double string_to_num_converter(char * str){
   return cur;
 }
 
-
-//TODO
-// figure out num threads
-// pass in three values from client
-
-//Thread arguments
-typedef struct thread_args {
- double start_num;
- double end_num;
- uint8_t hash[MD5_DIGEST_LENGTH+1];
-  char holder[7];
-} thread_args_t;
-
-thread_args_t thread_args[NUM_THREADS]; //holds all the thread arguments
-
-//function signatures
-int md5_string_to_bytes(const char* md5_string, uint8_t* bytes);
-//void print_md5_bytes(const uint8_t* bytes);
-bool check_all_converter(uint8_t* hash, char* word);
-void check_range(double start_num, double end_num,  uint8_t* hash, char *holder);
-void* crack_passwords_thread(void* void_args);
-char* create_word(char c);
-void* crack_passwords_thread2();
-
-char* find_password(double starting, double ending, char* hash) {
-
-  pthread_t threads[NUM_THREADS];  //holds our threads
-  //make this a global?
-  //thread_args_t thread_args[NUM_THREADS]; //holds all the thread arguments
-
-  // if(argc != 4) {
-  //    fprintf(stderr, "Usage: %s <path to password directory file>\n", argv[0]);
-  //   exit(1);  
-  //  }
-
-  // Read in the password file
-   uint8_t hashh[MD5_DIGEST_LENGTH+1];
-   char *hashstring = hash;
-    md5_string_to_bytes(hashstring, hashh);
-    //memmove(hashh,argv[1], sizeof(uint8_t*));
-    double start = starting;
- // sscanf(argv[2], "%lf", &start);
-    double end = ending;
-    // sscanf(argv[3], "%lf", &start);
-  //probably have to floor or ceiling this and keep track of that
-  double slice_size = ceil((end - start)/NUM_THREADS);
-  double start_num = 0;
-  double end_num;
-
-
-
-  for(int i = 0; i < NUM_THREADS; i++) {
-
-    //create the args
-    thread_args_t args;
-    start_num +=  slice_size;
-    end_num = start_num + slice_size - 1;
-    args.start_num = start;
-    args.end_num = end;
-    memmove(args.hash, hashh,MD5_DIGEST_LENGTH+1);
-    //args.hash = hashh;
-    thread_args[i] = args;
-
-    //pass to thread
-    pthread_t thread;
-
-    if(pthread_create(&threads[i], NULL, crack_passwords_thread, &thread_args[i]) != 0) {
-      perror("Failed to create thread");
-      exit(2);
-    } 
-  }
-
-  //join all the threads
-  for(int d = 0; d < NUM_THREADS; d++) {
-    pthread_join(threads[d], NULL);
-  }
-  // discrepancy between thread_args and args???
-  for(int j = 0; j < NUM_THREADS; j++){
-    
-  //check all args->holders
-  // if one of the threads found a password
-    if(strlen(thread_args[j].holder) == 7){
-     double found_pass = string_to_num_converter(thread_args[j].holder);
-     //do what you want, like send password to server
-     return thread_args[j].holder;
-    }
-  }
-  //send to servere "nope"
-  // else send "nope" to server and it checks for length
-  return "NOPE";
-}
-
-
-
 //crack_passwords_thread
 //  @param void_args: thread_args_t
 //  @return: thread_args_t type
 void* crack_passwords_thread(void* void_args) {
-
   thread_args_t* args = (thread_args_t*) void_args;
-
   //check for  passwords starting from start num to end num
-  check_range(args->start_num, args->end_num, args->hash, args->holder);
-
+  check_range(args->start_num, args->end_num, args->hash, args->holder, &args->password_found);
   return (void*) args;
 }
-
-
-
-//TODO
-
 
 //check_if the password exists in the given range
 // @param start_num: a double
 // @param end_num: a double
 // @param hash: a hashed password
 // @param holder: a string
-void check_range(double start_num, double end_num,  uint8_t* hash, char *holder) {
+void check_range(double start_num, double end_num,  uint8_t* hash, char *holder, bool* password_found) {
   double cur;
   for(cur = start_num; cur <= end_num; cur++){
     char* cur_word = num_to_string_converter(cur);
     if(check_all_converter(hash, cur_word)){
       strcpy(holder, cur_word);
+      *password_found = true;
       return;
     }
+    free(cur_word);
   }
-  char *nope = "nope";
-  strcpy(holder, nope);
   return;
 }
-
 
 /**
  * Convert a string representation of an MD5 hash to a sequence
@@ -308,43 +278,23 @@ void check_range(double start_num, double end_num,  uint8_t* hash, char *holder)
  *
  * \param md5_string  The md5 string representation
  * \param bytes       The destination buffer for the converted md5 hash
- * \returns           0 on success, -1 otherwise
+ * \returns           0 on success,-1 otherwise
  */
-
 int md5_string_to_bytes(const char* md5_string, uint8_t* bytes) {
   // Check for a valid MD5 string
   if(strlen(md5_string) != 2 * MD5_DIGEST_LENGTH) return -1;
-
   // Start our "cursor" at the start of the string
   const char* pos = md5_string;
-
   // Loop until we've read enough bytes
   for(size_t i=0; i<MD5_DIGEST_LENGTH; i++) {
     // Read one byte (two characters)
       int rc = sscanf(pos, "%2hhx", &bytes[i]);
       if(rc != 1) return -1;
-
     // Move the "cursor" to the next hexadecimal byte
     pos += 2;
   }
-
   return 0;
 }
-
-
-/**
- * Print a byte array that holds an MD5 hash to standard output.
- * 
- * \param bytes   An array of bytes from an MD5 hash function
- */
-/*
-void print_md5_bytes(const uint8_t* bytes) {
-  for(size_t i=0; i<MD5_DIGEST_LENGTH; i++) {
-    printf("%hhx", bytes[i]);
-  }
-}
-*/
-
 
 //check_all_converter
 //  @param: passwords: pointer to the passwords list
@@ -355,7 +305,6 @@ void print_md5_bytes(const uint8_t* bytes) {
 bool check_all_converter(uint8_t* hash, char* word){
   uint8_t password_ciphertest[MD5_DIGEST_LENGTH];
   MD5((unsigned char*)word, strlen(word), password_ciphertest);
-
   //compare word's MD5 hash with the given hash  
   if(memcmp(hash, password_ciphertest, MD5_DIGEST_LENGTH) == 0) {	
     return true;

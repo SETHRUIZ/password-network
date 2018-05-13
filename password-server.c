@@ -13,95 +13,89 @@
 #include <math.h>
 #include "cracker.h"
 
-#define SERVER_PORT 4444
+// Citations
+// (1)  http://web.theurbanpenguin.com/adding-color-to-your-output-from-c/ 
+//          - we used this site to change color of commandline output
+
+// Constants
+#define SERVER_PORT 4009
 #define NUM_SLICES 1024
-#define END_NUM 8031810176
+#define END_NUM 8031810560
+#define PASSWORD_LEN 8
 
-
-bool CLIENT_FOUND = false;
-int s = 0;
-
-//Response types
+// Response type
 typedef enum {
   REQUEST_MORE,
   PASSWORD_FOUND,
-  KEEP_LOOKING
+  KEEP_LOOKING,
+  SEARCH_SPACE_EXHAUSTED
 } response_t;
 
-//slice type
+// Slice (Contains search space)
 typedef struct slice {
   double start;
   double end;
   int client_id;
-  bool explored;
 } slice_t;
 
-//Data packets sent between client and server
+// Data packet (sent between client and server)
 typedef struct packet {
 	double starting;
 	double ending; 
 	int client_id;
-	char password [8];
+	char password [PASSWORD_LEN];
   char hash [33];
 	response_t response;
 } packet_t;
 
-
-//CLIENT STRUCTS
-typedef struct client {
- struct client* next;
- int client_id;
- int port;
- int client_socket;
- char ipstr[INET_ADDRSTRLEN]; 
-} client_node_t;
-
-typedef struct client_list {
-  client_node_t* head;
-} client_list_t;
-
-client_list_t* client_list;
-
-
+// Thread node
 typedef struct thread_node {
 	pthread_t thread;
 	struct thread_node* next;
 } thread_node_t;
 
-// Linked List of Threads
+// Threads list 
 typedef struct threads {
 	 thread_node_t* head_thread;
 } threads_list_t;
 
+// Thread arg
 typedef struct thread_arg {
   int socket_fd;
   int client_number;
 } thread_arg_t;
 
-
+// Global variables
 threads_list_t* threads_list;
 slice_t slices[NUM_SLICES];
-char HASH[] = "f0e8fb430bbdde6ae9c879a518fd895f";
+char HASH[100];
+bool CLIENT_FOUND = false;
+int s = 0;
+pthread_mutex_t lock;
+int UNEXPLORED_SLICE = 0;
 
-//function signatures
+// Function signatures
 int get_search_space(); 
 void append_thread_node(pthread_t thread);
 void join_threads(); 
 void append_node(int client_id, int port, char* ipstr);
-void init_client_list();
 void init_thread_list();
 void init_slices(); 
 void shut_down(); 
 void* time_out_fn(void* p);
 void* client_thread_fn(void* p);
-int get_search_space(); 
 
-
-//Main Driver function
+/* Main Driver function */
 int main() {
+
+  // Get the hash
+  printf("\033[1;35m");
+  printf("Enter md5 hash: ");
+  printf("\033[0;0m");
+  scanf("%s", HASH);
+
   // Set up a socket
   s = socket(AF_INET, SOCK_STREAM, 0);
-
   if(s == -1) {
     perror("socket");
     exit(2);
@@ -127,54 +121,91 @@ int main() {
   socklen_t addr_size = sizeof(struct sockaddr_in);
   getsockname(s, (struct sockaddr *) &addr, &addr_size);
   
-  // Print the port information
+  // Print Port information
+  printf("\033[1;35m"); 
   printf("Listening on port %d\n", ntohs(addr.sin_port));
-  
+  printf("\033[0;0m");   
+
   int client_count = 0;
   init_thread_list();
-  init_client_list();
   init_slices();
 
   // Repeatedly accept connections
   while(true) {
-    // Accept a client connection
+ 
     struct sockaddr_in client_addr;
     socklen_t client_addr_len = sizeof(struct sockaddr_in);
 
+   // Accept a client connection
     int client_socket = accept(s, (struct sockaddr*)&client_addr, &client_addr_len);
     
     char ipstr[INET_ADDRSTRLEN];
     inet_ntop(AF_INET, &client_addr.sin_addr, ipstr, INET_ADDRSTRLEN);
-    
+	
+    printf("\033[0;35m"); 
     printf("Client %d connected from %s\n", client_count, ipstr);
-
-  /* ----------------- SEG FAULT HERE -------------------*/
-    
+    printf("\033[0;0m"); 
     // Set up arguments for the client thread
     thread_arg_t* args = malloc(sizeof(thread_arg_t));
+
+    if(args == NULL) {
+      perror("Something went wrong thread args malloc\n");
+      exit(EXIT_FAILURE);
+    }
+
     args->socket_fd = client_socket;
     args->client_number = client_count;
     
-    // Create the thread
+    // Create thread for communicating with accepted client
     pthread_t thread;
+
     if(pthread_create(&thread, NULL, client_thread_fn, args)) {
       perror("pthread_create failed");
       exit(EXIT_FAILURE);
     }
 
-    append_node(client_count, client_socket, ipstr);
     append_thread_node(thread);
     client_count++;
   }
- 
  return 0;
 }
 
-
 //METHOD IMPLEMENTATIONS
 
+/* Creates a linked list of threads */
+void init_thread_list() {
+  threads_list = malloc(sizeof(threads_list_t));
+
+  if(threads_list == NULL) {
+    perror("Failed to malloc threads list\n");
+    exit(EXIT_FAILURE);
+  }
+
+  threads_list->head_thread = NULL;
+}
+
+/* Creates the search space slices */
+void init_slices() {
+  double SLICE_SIZE = END_NUM / NUM_SLICES;
+
+  for(int i = 0; i < NUM_SLICES; i++) {
+    slice_t slice;
+    slice.start = i * SLICE_SIZE;
+
+    if(i == NUM_SLICES - 1) { 
+      slice.end = slice.start + SLICE_SIZE;
+    } else {
+    slice.end = (slice.start + SLICE_SIZE) - 1;
+  }
+
+    slice.client_id = 0;
+    slices[i] = slice;
+  }
+}
+
+/* Appends thread to threads linked list */
 void append_thread_node(pthread_t thread) {
-	//allocate memory for the new thread
+	//Allocate memory for the new thread
 	thread_node_t* new_thread = malloc(sizeof(thread_node_t));
 
 	if(new_thread == NULL) {
@@ -182,7 +213,8 @@ void append_thread_node(pthread_t thread) {
 		exit(EXIT_FAILURE);
 	}
 
-	new_thread->next = NULL;
+	new_thread->thread = thread;
+  new_thread->next = NULL;
 
 	if(threads_list->head_thread == NULL) {
 		threads_list->head_thread = new_thread;
@@ -196,6 +228,7 @@ void append_thread_node(pthread_t thread) {
 	cur->next = new_thread;
 }
 
+/* Joins all the threads */
 void join_threads() {
 	thread_node_t* cur = threads_list->head_thread;
 	while(cur != NULL) {
@@ -204,65 +237,27 @@ void join_threads() {
 	}
 }
 
-///////  CLIENT LINKED LIST METHODS   ////////////
-
-//Appends client node to linked list
-void append_node(int client_id, int port, char* ipstr) {
-  //allocate memory for the new client node
-  client_node_t* new_node = malloc(sizeof(client_node_t));
-  if(new_node == NULL) {
-    perror("Malloc failed");
-    exit(2);
-  }
-
-  //populate the client node fields
-  new_node->client_id = client_id;
-  new_node->port = port;
-  strcpy(new_node->ipstr, ipstr);
-  new_node->next = NULL;
-
-  //if list is empty, add client to empty list
-  if(client_list->head == NULL) {
-    client_list->head = new_node;
-    return;
-  }
-
-  //otherwise add to end of list
-  client_node_t* cur = client_list->head;
-  while(cur->next != NULL) {
-    cur = cur->next;
-  }  
-  cur->next  = new_node;
-  return;
-}
-
-void init_client_list() {
-  client_list = malloc(sizeof(client_list_t));
-  client_list->head = NULL;
-}
-
-void init_thread_list() {
-	threads_list = malloc(sizeof(threads_list_t));
-	threads_list->head_thread = NULL;
-}
-
+/* Shutdown procedures */
 void shut_down() {
   join_threads();
   close(s);
   exit(EXIT_SUCCESS);
 }
 
+/* Waits for 15 seconds before shutting down server */
 void* time_out_fn(void* p) {
-
-printf("Waiting for remaining clients now\n");
+printf("\033[1;35m"); 
+printf("Waiting for remaining clients now...\n");
 sleep(15);
+printf("\033[0;0m");
+printf("\033[1;35m"); 
 printf("TIME OUT FINISHED, SERVER SHUTTING DOWN\n");
+printf("\033[0;0m"); 
 shut_down();
 return NULL;
+} 
 
-
-}
-
+/* Handles communication with the client */
 void* client_thread_fn(void* p) {
   // Unpack the thread arguments
   thread_arg_t* args = (thread_arg_t*)p;
@@ -277,12 +272,14 @@ void* client_thread_fn(void* p) {
     exit(EXIT_FAILURE);
   }
 
-  //Give the client initial search space
+  // Give the client initial search space
   int index;   
+  pthread_mutex_lock(&lock);
   if((index = get_search_space()) == -1) {
         perror("Something went wrong with getting seach space\n");
         exit(EXIT_FAILURE);
     }
+  pthread_mutex_unlock(&lock);
 
   packet_t packet;
   packet.starting = slices[index].start;
@@ -290,82 +287,79 @@ void* client_thread_fn(void* p) {
   packet.client_id = client_number;
   strcpy(packet.hash, HASH);
   packet.response = KEEP_LOOKING;
-
   write(socket_fd_copy, &packet, sizeof(packet_t));
 
+  //Keep dishing out new search spaces until password is found
   while (!CLIENT_FOUND) {
-      // Reads the response from the client and updates the packet on the server end
+      // Get response from client
       read(socket_fd_copy, &packet, sizeof(packet_t));
-        // If the client's responds that it found the password, update the global to alert 
-        // the other threads, return the password and break
+        
+        //Respond back to client appropriately
         switch(packet.response) {
+          
           case PASSWORD_FOUND:
             CLIENT_FOUND = true;
             packet.client_id = client_number;
             packet.response = PASSWORD_FOUND;
             write(socket_fd_copy, &packet, sizeof(packet_t)); 
+            printf("\033[1;92m"); 
             printf("Client %d found password: %s\n", packet.client_id, packet.password);
-             //Create time out for remaining clients
+            printf("\033[0;0m"); 
+
+          //Wait for 15 seconds, until server shutdown
   		  	pthread_t thread;
    		 	if(pthread_create(&thread, NULL, time_out_fn, NULL)) {
       		perror("pthread_create failed");
      		 exit(EXIT_FAILURE);
     		}
-            break;
-          case REQUEST_MORE: 
-              
-              if((index = get_search_space()) == -1) {
-            perror("Something went wrong with getting seach space\n");
-            exit(EXIT_FAILURE);
-          }
+              break;
 
+          case REQUEST_MORE: 
+              //If search space has been exhausted, close client
+              pthread_mutex_lock(&lock);
+              if((index = get_search_space()) == -1) {
+                pthread_mutex_unlock(&lock);
+                packet.client_id = client_number;
+                printf("\033[1;31m"); 
+                printf("Search space exhausted, Client %d disconnected.\n", packet.client_id);
+                printf("\033[0;0m"); 
+                packet.response = SEARCH_SPACE_EXHAUSTED;
+                write(socket_fd_copy, &packet, sizeof(packet_t));
+               } else {
+                pthread_mutex_unlock(&lock);
+            // Dish out another search space
             strcpy(packet.hash, HASH);
             packet.starting = slices[index].start;
             packet.ending = slices[index].end;
             packet.client_id = client_number;
             packet.response = KEEP_LOOKING;
             write(socket_fd_copy, &packet, sizeof(packet_t));
+          }
             break;
+
           default:
-            printf("I'm not sure why this would ever print.\n");
+              break;
         }
   }
 
+ //If password found, inform all clients
   packet.response = PASSWORD_FOUND;
   write(socket_fd_copy, &packet, sizeof(packet_t));
+  printf("\033[1;31m"); 
   printf("Client %d disconnected.\n", packet.client_id);
+  printf("\033[0;0m"); 
   return NULL;
 }
 
-
-///////////// NEW CODE
-void init_slices() {
-  double SLICE_SIZE = ceil(END_NUM / NUM_SLICES);
-  double last_end = 0;
-
-  for(int i = 0; i <= NUM_SLICES; i++) {
-    slice_t slice;
-    slice.start = i * SLICE_SIZE;
-    slice.end = slice.start + SLICE_SIZE - 1;
-    slice.explored = false;
-    slice.client_id = 0;
-    slices[i] = slice;
-  }
-}
-
-//Returns the index of an unexplored search space
+/* Returns the index of an unexplored search space */
 int get_search_space() {
-  //TODO WE NEED TO INCLUDE A LOCK HERE
-  for(int i = 0; i < NUM_SLICES; i++) {
-    if(!slices[i].explored) {
-      slices[i].explored = true;
-      return i;
+    if(UNEXPLORED_SLICE < NUM_SLICES) {
+      printf("\033[0;36m"); 
+      printf("slice: %s\n", num_to_string_converter(slices[UNEXPLORED_SLICE].start));
+      printf("\033[0;0m"); 
+      return UNEXPLORED_SLICE++;
     }
-  }
-
   return -1;
-  //TODO WE NEED TO UNLOCK HERE
 }
-
 
 

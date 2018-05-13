@@ -15,7 +15,7 @@ char* find_password(double starting, double ending, char* hash);
 
 void* crack_passwords_thread(void* void_args);
 
-void check_range(double start_num, double end_num,  uint8_t* hash, char *holder);
+void check_range(double start_num, double end_num,  uint8_t* hash, char *holder, bool* password_found);
 
 int md5_string_to_bytes(const char* md5_string, uint8_t* bytes);
 
