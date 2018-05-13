@@ -231,10 +231,15 @@ void append_thread_node(pthread_t thread) {
 /* Joins all the threads */
 void join_threads() {
 	thread_node_t* cur = threads_list->head_thread;
+	thread_node_t* holder = cur;
+
 	while(cur != NULL) {
+		holder = cur;
 		pthread_join(cur->thread, NULL);
 		cur = cur->next;
+		free(holder);
 	}
+
 }
 
 /* Shutdown procedures */
