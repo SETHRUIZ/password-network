@@ -9,8 +9,8 @@ A distributed network that hashes a range of potenial passwords using MD5 until 
 * **Tapiwa Zvidzwa** - [Tapszvidzwa](https://github.com/Tapszvidzwa)
 
 ## Execution
-Run 'make' to ensure the program is compiled
 
+* Run 'make' to ensure the program is compiled
 * Open a terminal and navigate to the directory containing the password network and run './password-server'
 * Write in the md5 hash that you want to decrypt when prompted, then hit enter
 * For example: ac940682a28f8a3798f1232afb3872d1
