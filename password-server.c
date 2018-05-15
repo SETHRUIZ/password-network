@@ -1,4 +1,3 @@
-
 #include <pthread.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -16,6 +15,8 @@
 // Citations
 // (1)  http://web.theurbanpenguin.com/adding-color-to-your-output-from-c/ 
 //          - we used this site to change color of commandline output
+// (2) We used code from the distributed system lab including some code from Professor Charlie's
+//     parrallel-server in order to implement our distributed system
 
 // Constants
 #define SERVER_PORT 4009
