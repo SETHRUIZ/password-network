@@ -233,14 +233,15 @@ int char_to_int_map(char character){
 }
 /*converts a double to a string by looping filling an int array with the 
 appropriate int gained from dividing 
-the double by 26 to the power of it's inverse digit 
+the double by 76 to the power of it's inverse digit 
 then converting the array of ints to a string
 by switching each int with it's corresponding char
 */
-char* num_to_string_converter(double base26){
+
+char* num_to_string_converter(double base76){
   int pass[7] = {0};
   for(int i = 0; i < 7; i++){
-    int num = (int) (fmod((base26 / pow(26, i)) , 26));
+    int num = (int) (fmod((base26 / pow(76, i)) , 76));
     pass[6 - i] =  num;
   }
 
@@ -260,7 +261,7 @@ this int is then multiplied by 26 to the power of it's inverse postion in the st
 double string_to_num_converter(char * str){
   double cur = 0;
   for(int i = 0; i < 7; i++){
-    cur += (double)char_to_int_map(str[6 - i]) * (pow((double)26, (double) i));
+    cur += (double)char_to_int_map(str[6 - i]) * (pow((double)76, (double) i));
       }
   return cur;
 }
