@@ -65,6 +65,108 @@ char int_to_char_map(int number){
     return 'y';
   case 25 :
     return 'z';
+	  case 26 :
+		  return 'A';
+	  case 27 :
+		  return 'B';
+	  case 28 :
+		  return 'C';
+	  case 29 :
+		  return 'D';
+	  case 30 :
+		  return 'E';
+	  case 31 :
+		  return 'F';
+	  case 32 :
+		  return 'G':
+	  case 33 :
+		  return 'H';
+	  case 34 :
+		  return 'I';
+	  case 35 :
+		  return 'J';
+	  case 36 :
+		  return 'K';
+	  case 37 :
+		  return 'L';
+	  case 38 :
+		  return 'M';
+	  case 39 :
+		  return 'N';
+	  case 40 :
+		  return 'O';
+	  case 41 :
+		  return 'P';
+	  case 42 :
+		  return 'Q';
+	  case 43 :
+		  return 'R';
+	  case 44 :
+		  return 'S';
+	  case 45 :
+		  return 'T';
+	  case 46 :
+		  return 'U';
+	  case 47 :
+		  return 'V';
+	  case 48 :
+		  return 'W';
+	  case 49 :
+		  return 'X';
+	  case 50 :
+		  return 'Y';
+	  case 51 :
+		  return 'Z';
+	  case 52 :
+		  return '0';
+	  case 53 :
+		  return '1';
+	  case 54 :
+		  return '2';
+	  case 55 :
+		  return '3';
+	  case 56 :
+		 return '4';
+	  case 57 :
+		  return '5';
+	  case 58 :
+		  return '6';
+	  case 59 :
+		  return '7';
+	  case 60 :
+		  return '8';
+	  case 61 :
+		  return '9';
+	  case 62 :
+		  return '!';
+	  case 63 :
+		  return '@';
+	  case 64 :
+		  return '#';
+	  case 65 :
+		  return '$';
+	  case 66 :
+		  return '%';
+	  case 67 :
+		  return '^';
+	  case 68 :
+		  return '&';
+	  case 69 :
+		  return '*';
+	  case 70 :
+		  return '(';
+	  case 71 :
+		  return ')';
+	  case 72 :
+		  return '?';
+	  case 73 :
+		  return '/';
+	  case 74 :
+		  return '<';
+	  case 75 :
+		  return '>';
+	  case 76 :
+		  return '~';
   default :
     return '\0';
   }
